@@ -10,7 +10,6 @@ from text import text_to_sequence
 from mel_processing import spectrogram_torch
 from models import SynthesizerTrn
 import logging
-import socket
 
 
 # Initialize logging
@@ -27,27 +26,10 @@ NEON_GREEN = '\033[92m'
 RED = '\033[91m'
 RESET_COLOR = '\033[0m'
 
-def send_phonemes_to_blender(phoneme_str):
-    try:
-        client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client.connect(('127.0.0.1', 65433))  # Match client server IP and port
-        client.sendall(phoneme_str.encode('utf-8'))  # Send phonemes once
-        logger.info(f"{NEON_GREEN}Sent phonemes to Blender: {phoneme_str}{RESET_COLOR}")
-    except Exception as e:
-        logger.error(f"Failed to send phonemes: {e}")
-    finally:
-        client.close()
-
-
-
-
-
 class OpenVoiceBaseClass(object):
     def __init__(self, config_path, device='cuda:0'):
         if 'cuda' in device:
-            if torch.cuda.is_available():
-                print("CUDA is available. Using device:", device)
-            else:
+            if not torch.cuda.is_available():
                 print("CUDA is not available. Switching to CPU.")
                 device = 'cpu'
         else:
@@ -87,15 +69,6 @@ class BaseSpeakerTTS(OpenVoiceBaseClass):
 
         # Convert the sequence of tokens (text_norm) to the actual phonemes using hps.symbols
         phonemes = [hps.symbols[token] for token in text_norm]
-
-        # Join the phonemes without underscores and ensure proper formatting
-        phoneme_str = ' '.join(phonemes).replace('_', '')  # Remove unwanted underscores if present
-
-        # Log the actual phonemes with proper formatting
-        logger.info(f"{NEON_GREEN}Received phonemes: {phoneme_str}{RESET_COLOR}")
-
-        # Send phonemes to Blender (global function call)
-        send_phonemes_to_blender(phoneme_str)
 
         text_norm = torch.LongTensor(text_norm)
         return text_norm
